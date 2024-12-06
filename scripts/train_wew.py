@@ -1,4 +1,30 @@
+#!/usr/bin/env python
+# coding: utf-8
 
+import sys
+sys.path.append('../cace/')
+
+import numpy as np
+import torch
+import torch.nn as nn
+import logging
+
+import cace
+from cace.representations import Cace
+from cace.modules import CosineCutoff, MollifierCutoff, PolynomialCutoff
+from cace.modules import BesselRBF, GaussianRBF, GaussianRBFCentered
+
+from cace.models.atomistic import NeuralNetworkPotential
+from cace.tasks.train import TrainingTask
+
+torch.set_default_dtype(torch.float32)
+
+cace.tools.setup_logger(level='INFO')
+cutoff = 5.5
+
+logging.info("reading data")
+collection = cace.tasks.get_dataset_from_xyz(train_path='../water.xyz',
+                                 valid_fraction=0.1,
                                  seed=1,
                                  cutoff=cutoff,
                                  data_key={'energy': 'energy', 'forces':'force'}, 
@@ -208,3 +234,5 @@ logging.info(f"Finished")
 
 trainable_params = sum(p.numel() for p in cace_nnp.parameters() if p.requires_grad)
 logging.info(f"Number of trainable parameters: {trainable_params}")
+
+
