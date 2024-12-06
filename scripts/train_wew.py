@@ -52,6 +52,8 @@ radial_basis = BesselRBF(cutoff=cutoff, n_rbf=6, trainable=True)
 #cutoff_fn = CosineCutoff(cutoff=cutoff)
 cutoff_fn = PolynomialCutoff(cutoff=cutoff)
 
+#MACE uses ACE represntation so here its just ACE
+
 cace_representation = Cace(
     zs=[1,8],
     n_atom_basis=3,
@@ -83,12 +85,15 @@ atomwise = cace.modules.atomwise.Atomwise(n_layers=3,
 forces = cace.modules.forces.Forces(energy_key='CACE_energy',
                                     forces_key='CACE_forces')
 
+#here NeuralNetwork becomes MACE potential
+
 logging.info("building CACE NNP")
 cace_nnp_sr = NeuralNetworkPotential(
     input_modules=None,
     representation=cace_representation,
     output_modules=[atomwise, forces]
 )
+
 
 
 q = cace.modules.Atomwise(
@@ -111,6 +116,8 @@ ep = cace.modules.EwaldPotential(dl=2,
 forces_lr = cace.modules.Forces(energy_key='ewald_potential',
                                     forces_key='ewald_forces')
 
+#now here ep is given by an ewald summation in recirpocal space so basically the network should stay that neural network potential with ewald summation => can i use cace represnetaion still ???
+
 cace_nnp_lr = NeuralNetworkPotential(
     input_modules=None,
     representation=cace_representation,
@@ -126,9 +133,12 @@ pot1 = {'CACE_energy': 'CACE_energy',
         'CACE_forces': 'CACE_forces',
        }
 
+#the combine potential is a fucntion that sums ep from MACE and ep from NN cace ewald 
+
 cace_nnp = cace.models.CombinePotential([cace_nnp_sr, cace_nnp_lr], [pot1,pot2])
 cace_nnp.to(device)
 
+#check the losses to make sure not to worry 
 
 logging.info(f"First train loop:")
 energy_loss = cace.tasks.GetLoss(
