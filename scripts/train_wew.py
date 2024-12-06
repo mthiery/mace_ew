@@ -16,6 +16,8 @@ from cace.modules import BesselRBF, GaussianRBF, GaussianRBFCentered
 
 from cace.models.atomistic import NeuralNetworkPotential
 from cace.tasks.train import TrainingTask
+import mace
+from mace.calculators import LAMMPS_MACE
 
 torch.set_default_dtype(torch.float32)
 
@@ -54,26 +56,36 @@ cutoff_fn = PolynomialCutoff(cutoff=cutoff)
 
 #MACE uses ACE represntation so here its just ACE
 
-cace_representation = Cace(
-    zs=[1,8],
-    n_atom_basis=3,
-    embed_receiver_nodes=True,
-    cutoff=cutoff,
-    cutoff_fn=cutoff_fn,
-    radial_basis=radial_basis,
-    n_radial_basis=12,
-    max_l=3,
-    max_nu=3,
-    num_message_passing=1,
-    type_message_passing=['Bchi'],
-    args_message_passing={'Bchi': {'shared_channels': False, 'shared_l': False}},
-    #avg_num_neighbors=1,
-    device=device,
-    timeit=False
-           )
+MACE_representation = MACE(
+    r_max = 5.5,
+    num_bessel =,
+    num_polynomial_cutoff: int,
+    max_ell: int,
+    interaction_cls: Type[InteractionBlock],
+    interaction_cls_first: Type[InteractionBlock],
+    num_interactions: int,
+    num_elements: int,
+    hidden_irreps: o3.Irreps,
+    MLP_irreps: o3.Irreps,
+    atomic_energies: np.ndarray,
+    avg_num_neighbors: float,
+    atomic_numbers: List[int],
+    correlation: Union[int, List[int]],
+    gate: Optional[Callable],
+    pair_repulsion: bool = False,
+    distance_transform: str = "None",
+    radial_MLP: Optional[List[int]] = None,
+    radial_type: Optional[str] = "bessel",
+    heads: Optional[List[str]] = None,
+    cueq_config: Optional[Dict[str, Any]] = None,)
+
+MACE_representation.to(device)
+
+cace_representation = Cace()
 
 cace_representation.to(device)
-logging.info(f"Representation: {cace_representation}")
+
+logging.info(f"Representation: {MACE_representation}")
 
 atomwise = cace.modules.atomwise.Atomwise(n_layers=3,
                                          output_key='CACE_energy',
@@ -88,9 +100,9 @@ forces = cace.modules.forces.Forces(energy_key='CACE_energy',
 #here NeuralNetwork becomes MACE potential
 
 logging.info("building CACE NNP")
-cace_nnp_sr = NeuralNetworkPotential(
+MACE_nnp_sr = NeuralNetworkPotential(
     input_modules=None,
-    representation=cace_representation,
+    representation=MACE_representation,
     output_modules=[atomwise, forces]
 )
 
